@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WhatsApp Full DP Uploader</title>
+</head>
+<body>
+  <h2>Upload DP</h2>
+  <form id="uploadForm">
+    <input type="file" name="photo" accept="image/*" required />
+    <button type="submit">Upload</button>
+  </form>
+
+  <div id="uploaded"></div>
+
+  <h2>Generate Pair Code</h2>
+  <input type="text" id="number" placeholder="947XXXXXXXX" />
+  <button id="pairBtn">Generate</button>
+
+  <pre id="pairCode"></pre>
+
+  <script>
+    let photoUrl = "";
+
+    document.getElementById("uploadForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch("/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.success) {
+        photoUrl = data.file;
+        document.getElementById(
+          "uploaded"
+        ).innerHTML = `<img src="${photoUrl}" width="150"/>`;
+      }
+    };
+
+    document.getElementById("pairBtn").onclick = async () => {
+      const number = document.getElementById("number").value.trim();
+      if (!number || !photoUrl) {
+        alert("Please upload photo and enter number");
+        return;
+      }
+      const res = await fetch(`/pair?number=${number}&photo=${photoUrl}`);
+      const data = await res.json();
+      document.getElementById("pairCode").innerText = data.pairCode || "Error!";
+    };
+  </script>
+</body>
+</html>
