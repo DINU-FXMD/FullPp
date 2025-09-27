@@ -1,0 +1,9 @@
+{
+  "name": "WhatsApp Full DP Site",
+  "description": "Upload profile photos and set them automatically to WhatsApp via Baileys.",
+  "repository": "https://github.com/DINU-FXMD/FullPp",
+  "keywords": ["node", "express", "whatsapp", "baileys", "dp"],
+  "scripts": {
+    "postdeploy": "echo 'App Deployed Successfully 🚀'"
+  }
+}
