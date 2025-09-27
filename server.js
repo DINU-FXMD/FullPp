@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static("public"));
 app.use("/uploads", express.static("uploads"));
 
-// Multer config (photo upload)
+// Multer config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) =>
@@ -23,13 +23,11 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Upload photo API
 app.post("/upload", upload.single("photo"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
   res.json({ success: true, file: `/uploads/${req.file.filename}` });
 });
 
-// Pair code + set profile picture API
 app.get("/pair", async (req, res) => {
   const number = req.query.number;
   const photoUrl = req.query.photo;
@@ -52,7 +50,6 @@ app.get("/pair", async (req, res) => {
     const code = await sock.requestPairingCode(number);
     console.log("PAIR CODE:", code);
 
-    // Once connected → update profile picture
     sock.ev.on("connection.update", async (update) => {
       const { connection } = update;
       if (connection === "open") {
