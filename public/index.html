@@ -1,50 +1,115 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>WhatsApp Full DP Uploader</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WhatsApp Full DP — Upload & Pair</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:18px;color:#111}
+    h1{margin:0 0 12px}
+    .card{border:1px solid #ddd;padding:14px;border-radius:8px;max-width:720px}
+    label{display:block;margin:8px 0 4px;font-weight:600}
+    input[type="file"]{display:block}
+    img.preview{display:block;margin-top:10px;max-width:200px;border-radius:6px}
+    .btn{background:#1b95e0;color:#fff;padding:8px 12px;border:0;border-radius:6px;cursor:pointer}
+    .muted{color:#666;font-size:14px}
+    pre#pairCode{background:#f6f6f6;padding:10px;border-radius:6px}
+    .success{color:green}
+    .error{color:#b00020}
+  </style>
 </head>
 <body>
-  <h2>Upload DP</h2>
-  <form id="uploadForm">
-    <input type="file" name="photo" accept="image/*" required />
-    <button type="submit">Upload</button>
-  </form>
+  <h1>WhatsApp Full DP — Upload & Pair</h1>
 
-  <div id="uploaded"></div>
+  <div class="card">
+    <h3>1) Upload photo</h3>
+    <form id="uploadForm">
+      <label for="photo">Choose photo (jpg/png)</label>
+      <input id="photo" name="photo" type="file" accept="image/*" required />
+      <button class="btn" type="submit">Upload</button>
+    </form>
+    <div id="uploadResult" style="margin-top:10px"></div>
+  </div>
 
-  <h2>Generate Pair Code</h2>
-  <input type="text" id="number" placeholder="947XXXXXXXX" />
-  <button id="pairBtn">Generate</button>
+  <div style="height:12px"></div>
 
-  <pre id="pairCode"></pre>
+  <div class="card">
+    <h3>2) Enter WhatsApp number (with country code)</h3>
+    <p class="muted">Example: <code>9477XXXXXXX</code> (no + or @)</p>
+
+    <label for="number">Phone number</label>
+    <input id="number" type="text" placeholder="9477XXXXXXXX" style="padding:8px;width:60%" />
+
+    <div style="height:10px"></div>
+    <button id="pairBtn" class="btn">Generate Pair Code & Pair</button>
+
+    <div style="margin-top:12px">
+      <strong>Pair status / code:</strong>
+      <pre id="pairCode">Not started</pre>
+    </div>
+
+    <div style="margin-top:8px">
+      <small class="muted">Notes: After generating the pair code you may need to scan QR or follow pairing instructions printed in your server console (depending on server implementation).</small>
+    </div>
+  </div>
 
   <script>
-    let photoUrl = "";
+    let uploadedPath = ""; 
 
-    document.getElementById("uploadForm").onsubmit = async (e) => {
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(e.target);
-      const res = await fetch("/upload", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.success) {
-        photoUrl = data.file;
-        document.getElementById(
-          "uploaded"
-        ).innerHTML = `<img src="${photoUrl}" width="150"/>`;
-      }
-    };
+      const fileInput = document.getElementById('photo');
+      if (!fileInput.files.length) return alert('Please select a photo.');
 
-    document.getElementById("pairBtn").onclick = async () => {
-      const number = document.getElementById("number").value.trim();
-      if (!number || !photoUrl) {
-        alert("Please upload photo and enter number");
-        return;
+      const fd = new FormData();
+      fd.append('photo', fileInput.files[0]);
+
+      document.getElementById('uploadResult').innerText = 'Uploading...';
+      try {
+        const res = await fetch('/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+        uploadedPath = data.file; 
+        document.getElementById('uploadResult').innerHTML = `
+          <div class="success">Uploaded ✔</div>
+          <img class="preview" src="${uploadedPath}" alt="preview">
+          <div class="muted">Saved at: <code>${uploadedPath}</code></div>
+        `;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('uploadResult').innerHTML = '<div class="error">Upload failed</div>';
       }
-      const res = await fetch(`/pair?number=${number}&photo=${photoUrl}`);
-      const data = await res.json();
-      document.getElementById("pairCode").innerText = data.pairCode || "Error!";
-    };
+    });
+
+    document.getElementById('pairBtn').addEventListener('click', async () => {
+      const number = document.getElementById('number').value.trim();
+      if (!number) return alert('Enter phone number first');
+      if (!uploadedPath) return alert('Please upload a photo first');
+
+      document.getElementById('pairCode').innerText = 'Requesting pair code...';
+
+      try {
+        const url = `/pair?number=${encodeURIComponent(number)}&photo=${encodeURIComponent(uploadedPath)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!res.ok) {
+          document.getElementById('pairCode').innerText = 'Error: ' + (data.error || 'Failed');
+          return;
+        }
+
+        if (data.pairCode) {
+          document.getElementById('pairCode').innerText = 'Pair code: ' + data.pairCode +
+            '\nScan the QR displayed in server console or follow pairing steps.';
+        } else {
+          document.getElementById('pairCode').innerText = 'Pairing started. Check server console for QR or pairing status.';
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById('pairCode').innerText = 'Request failed';
+      }
+    });
   </script>
 </body>
 </html>
