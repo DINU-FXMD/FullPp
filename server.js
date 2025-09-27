@@ -1,75 +1,40 @@
-const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const { Boom } = require("@hapi/boom");
-const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-} = require("@whiskeysockets/baileys");
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
-app.use(express.static("public"));
-app.use("/uploads", express.static("uploads"));
+app.use(express.static('public'));
 
-// Multer config
+// Ensure uploads dir exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) =>
-    cb(null, Date.now() + path.extname(file.originalname)),
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + path.extname(file.originalname);
+    cb(null, uniqueName);
+  }
 });
 const upload = multer({ storage });
 
-app.post("/upload", upload.single("photo"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  res.json({ success: true, file: `/uploads/${req.file.filename}` });
+// Upload endpoint
+app.post('/upload', upload.single('photo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  res.json({ file: '/uploads/' + req.file.filename });
 });
 
-app.get("/pair", async (req, res) => {
-  const number = req.query.number;
-  const photoUrl = req.query.photo;
+// Pair endpoint (mock)
+app.get('/pair', (req, res) => {
+  const { number, photo } = req.query;
+  if (!number || !photo) return res.status(400).json({ error: 'Missing params' });
 
-  if (!number || !photoUrl)
-    return res.status(400).json({ error: "number & photo required" });
-
-  try {
-    const { state, saveCreds } = await useMultiFileAuthState("./auth");
-    const { version } = await fetchLatestBaileysVersion();
-
-    const sock = makeWASocket({
-      version,
-      auth: state,
-      printQRInTerminal: false,
-    });
-
-    sock.ev.on("creds.update", saveCreds);
-
-    const code = await sock.requestPairingCode(number);
-    console.log("PAIR CODE:", code);
-
-    sock.ev.on("connection.update", async (update) => {
-      const { connection } = update;
-      if (connection === "open") {
-        const jid = number + "@s.whatsapp.net";
-        try {
-          await sock.updateProfilePicture(jid, { url: "." + photoUrl });
-          console.log("✅ Profile picture updated!");
-        } catch (err) {
-          console.error("DP update error:", err);
-        }
-      }
-    });
-
-    res.json({ pairCode: code });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const fakePairCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+  console.log(`Pairing requested for number ${number} with photo ${photo}`);
+  res.json({ pairCode: fakePairCode });
 });
 
-app.listen(PORT, () =>
-  console.log(`🚀 Server running at http://localhost:${PORT}`)
-);
+app.listen(port, () => console.log('Server running on port ' + port));
